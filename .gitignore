@@ -1,0 +1,5 @@
+/data
+/plots
+.env
+/*.sublime-*
+*.csv
