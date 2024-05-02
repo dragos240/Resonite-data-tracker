@@ -2,33 +2,19 @@
 from os import listdir
 import os
 import sys
-from typing import Any, List, Dict, Tuple
+from typing import Any, List, Dict
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-
-def convert_dates(data_points: List[Dict[str, Any]]) -> List[date]:
-    dates = [data_point["date"]
-             for data_point in data_points]
-    return [datetime.strptime(date, "%Y-%m-%d")
-            .date() for date in dates]
-
-
-def hours_formatter(hours_str, _) -> str:
-    hours = int(hours_str)
-    mins = int((hours_str - hours) * 60)
-
-    return f"{hours}:{mins:02d}"
-
-
-def convert_durations(data_points: List[Dict[str, Any]]) -> List[timedelta]:
-    durations = [data_point["duration"]
-                 for data_point in data_points]
-    return [timedelta(seconds=int(s)) for s in durations]
+from util import (hours_formatter,
+                  month_formatter,
+                  convert_dates,
+                  convert_durations,
+                  parse_out_data)
 
 
 def time_per_day(data_points: List[Dict[str, Any]]):
@@ -55,6 +41,51 @@ def time_per_day(data_points: List[Dict[str, Any]]):
     plt.title("Time spent per day")
 
     plt.savefig("plots/time-per-day.png")
+
+
+def avg_daily_session_by_month(data_points: List[Dict[str, Any]]):
+    def get_months(dates: List[date]) -> Dict[int, Dict[str, int]]:
+        months = {}
+        for d in dates:
+            month = d.month
+            if month not in months:
+                months[month] = {"duration": 0, "days": 0}
+
+        return months
+
+    dates = convert_dates(data_points)
+    durations = convert_durations(data_points)
+
+    # Separate by month
+    months = get_months(dates)
+    avg_hours_per_day_by_month: Dict[int, float] = {}
+    for d, duration in zip(dates, durations):
+        for month in months.keys():
+            if d.month == month:
+                months[month]["duration"] += int(duration.total_seconds())
+                months[month]["days"] += 1
+
+    for month, data in months.items():
+        avg_hours_per_day = data["duration"] // data["days"] / 3600
+        avg_hours_per_day_by_month[month] = avg_hours_per_day
+
+    _, ax = plt.subplots()
+    if not isinstance(ax, Axes):
+        return
+    ax.bar(avg_hours_per_day_by_month.keys(),
+           avg_hours_per_day_by_month.values())
+
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(month_formatter))
+
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(hours_formatter))
+
+    plt.gcf().autofmt_xdate()
+    plt.xticks(list(avg_hours_per_day_by_month.keys()))
+    plt.ylabel("Duration (hours)")
+    plt.xlabel("Month")
+    plt.title("Average Resonite session per day by month")
+
+    plt.savefig("plots/avg-time-per-day-by-month.png")
 
 
 def time_by_week_day(data_points: List[Dict[str, Any]]):
@@ -84,7 +115,6 @@ def time_by_week_day(data_points: List[Dict[str, Any]]):
         return
     ax.bar(days_of_week, weekday_averages.values())
 
-    # ax.yaxis.set_major_locator(plt.MaxNLocator())
     ax.yaxis.set_major_formatter(plt.FuncFormatter(hours_formatter))
 
     plt.gcf().autofmt_xdate()
@@ -124,60 +154,6 @@ def time_per_week_number(data_points: List[Dict[str, Any]]):
     plt.savefig("plots/time-by-week-number.png")
 
 
-def parse_out_data(documents: List[Dict]) -> List[Dict[str, str]]:
-    def ts_to_datetime(ts: int):
-        return datetime.fromtimestamp(ts)
-
-    def ts_to_date(ts: int) -> str:
-        dt = datetime.fromtimestamp(ts)
-        date = dt.strftime("%Y-%m-%d")
-        return date
-
-    def gather_unique(data_points: List[Dict[str, str]]):
-        unique_data_points: List[Dict[str, str]] = []
-        last = None
-        for data_point in sorted(data_points, key=lambda d: d["date"]):
-            if (last is not None
-                    and data_point["date"] == last["date"]
-                    and data_point["duration"] == last["duration"]):
-                continue
-            unique_data_points.append(data_point)
-            last = data_point
-
-        return unique_data_points
-
-    def combine_durations_for_date(data_points: List[Dict[str, str]]) \
-            -> List[Dict[str, str]]:
-        combined_data_points = []
-        last = None
-        for data_point in data_points:
-            if (last is not None
-                    and data_point["date"] == last["date"]):
-                combined_data_points[-1]["duration"] += data_point["duration"]
-            else:
-                combined_data_points.append(data_point)
-            last = data_point
-
-        return combined_data_points
-
-    data_points = []
-    for document in documents:
-        if document["identifier"] != "Resonite":
-            continue
-        _start_time = document["startTime"]
-        date = ts_to_date(_start_time)
-        dt = ts_to_datetime(_start_time)
-        _duration = document["duration"]
-        data_points.append({"date": date,
-                            "datetime": dt,
-                            "duration": _duration})
-
-    unique_data_points = gather_unique(data_points)
-    combined_data_points = combine_durations_for_date(unique_data_points)
-
-    return combined_data_points
-
-
 def main(json_files: List[str]):
     documents: List[Dict] = []
     if not json_files:
@@ -195,6 +171,7 @@ def main(json_files: List[str]):
         os.mkdir("plots")
 
     time_per_day(parsed_data)
+    avg_daily_session_by_month(parsed_data)
     time_by_week_day(parsed_data)
     time_per_week_number(parsed_data)
 
