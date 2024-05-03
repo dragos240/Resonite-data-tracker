@@ -3,3 +3,4 @@
 .env
 /*.sublime-*
 *.csv
+__pycache__
