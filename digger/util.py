@@ -39,8 +39,8 @@ class DataPoint:
         self._duration = self.to_timedelta(duration)
 
     @property
-    def date(self):
-        return self._dt.strftime("%Y-%m-%d")
+    def date(self) -> date:
+        return self._dt.date()
 
 
 def hours_formatter(hours_str, _) -> str:
@@ -57,9 +57,9 @@ def month_formatter(month: int, _) -> str:
 
 
 def convert_dates(data_points: List[DataPoint]) -> List[date]:
-    dates = [data_point.dt
+    dates = [data_point.date
              for data_point in data_points]
-    return [d.date() for d in dates]
+    return dates
 
 
 def convert_durations(data_points: List[DataPoint]) -> List[timedelta]:
@@ -74,7 +74,7 @@ def parse_out_data(documents: List[Dict]) -> List[DataPoint]:
         last = None
         for data_point in sorted(data_points, key=lambda d: d.date):
             if (last is not None
-                    and data_point.date == last.date
+                    and data_point.dt == last.dt
                     and data_point.duration == last.duration):
                 continue
             unique_data_points.append(data_point)
@@ -88,7 +88,7 @@ def parse_out_data(documents: List[Dict]) -> List[DataPoint]:
         last = None
         for data_point in data_points:
             if (last is not None
-                    and data_point.date == last.date):
+                    and data_point.dt == last.dt):
                 combined_data_points[-1].add_time(data_point.duration)
             else:
                 combined_data_points.append(data_point)

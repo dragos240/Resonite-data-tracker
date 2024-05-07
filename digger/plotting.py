@@ -19,6 +19,7 @@ from util import (DataPoint,
 
 
 def time_per_day(data_points: List[DataPoint]):
+    """Plots time spent per day"""
     dates = convert_dates(data_points)
     durations = convert_durations(data_points)
 
@@ -45,6 +46,7 @@ def time_per_day(data_points: List[DataPoint]):
 
 
 def peak_play_times(data_points: List[DataPoint]):
+    """Plots peak play times by day of week"""
     days_of_week = {"Sunday": [],
                     "Monday": [],
                     "Tuesday": [],
@@ -82,6 +84,7 @@ def peak_play_times(data_points: List[DataPoint]):
 
 
 def avg_daily_session_by_month(data_points: List[DataPoint]):
+    """Plots average daily session by month"""
     def get_months(dates: List[date]) -> Dict[int, Dict[str, float]]:
         months = {}
         for d in dates:
@@ -127,6 +130,7 @@ def avg_daily_session_by_month(data_points: List[DataPoint]):
 
 
 def time_by_week_day(data_points: List[DataPoint]):
+    """Plots time spent by day of week"""
     days_of_week = ["Sunday", "Monday", "Tuesday",
                     "Wednesday", "Thursday", "Friday",
                     "Saturday"]
@@ -166,6 +170,7 @@ def time_by_week_day(data_points: List[DataPoint]):
 
 
 def time_per_week_number(data_points: List[DataPoint]):
+    """Plots time spent by week of year"""
     weeks: Dict[int, float] = {}
     for data_point in data_points:
         dt: datetime = data_point.dt
