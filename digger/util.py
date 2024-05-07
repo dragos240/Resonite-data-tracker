@@ -1,6 +1,46 @@
-from typing import Any, List, Dict
-from datetime import date, datetime, timedelta
+from typing import List, Dict
+from datetime import datetime, timedelta, date
 import calendar
+
+
+class DataPoint:
+    _dt: datetime
+    _duration: timedelta
+
+    def __init__(self, start: int, duration: int):
+        self._dt = self.to_datetime(start)
+        self._duration = self.to_timedelta(duration)
+
+    @staticmethod
+    def to_datetime(ts: int) -> datetime:
+        return datetime.fromtimestamp(ts)
+
+    @staticmethod
+    def to_timedelta(duration: int) -> timedelta:
+        return timedelta(seconds=duration)
+
+    def add_time(self, duration: timedelta):
+        self._duration += duration
+
+    @property
+    def dt(self) -> datetime:
+        return self._dt
+
+    @dt.setter
+    def dt(self, ts: int):
+        self._dt = self.to_datetime(ts)
+
+    @property
+    def duration(self):
+        return self._duration
+
+    @duration.setter
+    def duration(self, duration: int):
+        self._duration = self.to_timedelta(duration)
+
+    @property
+    def date(self):
+        return self._dt.strftime("%Y-%m-%d")
 
 
 def hours_formatter(hours_str, _) -> str:
@@ -16,66 +56,53 @@ def month_formatter(month: int, _) -> str:
     return calendar.month_name[month]
 
 
-def convert_dates(data_points: List[Dict[str, Any]]) -> List[date]:
-    dates = [data_point["date"]
+def convert_dates(data_points: List[DataPoint]) -> List[date]:
+    dates = [data_point.dt
              for data_point in data_points]
-    return [datetime.strptime(date, "%Y-%m-%d")
-            .date() for date in dates]
+    return [d.date() for d in dates]
 
 
-def convert_durations(data_points: List[Dict[str, Any]]) -> List[timedelta]:
-    durations = [data_point["duration"]
+def convert_durations(data_points: List[DataPoint]) -> List[timedelta]:
+    durations = [data_point.duration
                  for data_point in data_points]
-    return [timedelta(seconds=int(s)) for s in durations]
+    return durations
 
 
-def parse_out_data(documents: List[Dict]) -> List[Dict[str, str]]:
-    def ts_to_datetime(ts: int):
-        return datetime.fromtimestamp(ts)
-
-    def ts_to_date(ts: int) -> str:
-        dt = datetime.fromtimestamp(ts)
-        date = dt.strftime("%Y-%m-%d")
-        return date
-
-    def gather_unique(data_points: List[Dict[str, str]]):
-        unique_data_points: List[Dict[str, str]] = []
+def parse_out_data(documents: List[Dict]) -> List[DataPoint]:
+    def gather_unique(data_points: List[DataPoint]):
+        unique_data_points: List[DataPoint] = []
         last = None
-        for data_point in sorted(data_points, key=lambda d: d["date"]):
+        for data_point in sorted(data_points, key=lambda d: d.date):
             if (last is not None
-                    and data_point["date"] == last["date"]
-                    and data_point["duration"] == last["duration"]):
+                    and data_point.date == last.date
+                    and data_point.duration == last.duration):
                 continue
             unique_data_points.append(data_point)
             last = data_point
 
         return unique_data_points
 
-    def combine_durations_for_date(data_points: List[Dict[str, str]]) \
-            -> List[Dict[str, str]]:
-        combined_data_points = []
+    def combine_durations_for_date(data_points: List[DataPoint]) \
+            -> List[DataPoint]:
+        combined_data_points: List[DataPoint] = []
         last = None
         for data_point in data_points:
             if (last is not None
-                    and data_point["date"] == last["date"]):
-                combined_data_points[-1]["duration"] += data_point["duration"]
+                    and data_point.date == last.date):
+                combined_data_points[-1].add_time(data_point.duration)
             else:
                 combined_data_points.append(data_point)
             last = data_point
 
         return combined_data_points
 
-    data_points = []
+    data_points: List[DataPoint] = []
     for document in documents:
         if document["identifier"] != "Resonite":
             continue
-        _start_time = document["startTime"]
-        date = ts_to_date(_start_time)
-        dt = ts_to_datetime(_start_time)
-        _duration = document["duration"]
-        data_points.append({"date": date,
-                            "datetime": dt,
-                            "duration": _duration})
+        start_time = document["startTime"]
+        duration = document["duration"]
+        data_points.append(DataPoint(start_time, duration))
 
     unique_data_points = gather_unique(data_points)
     combined_data_points = combine_durations_for_date(unique_data_points)
