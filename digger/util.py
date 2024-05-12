@@ -1,46 +1,8 @@
-from typing import List, Dict
-from datetime import datetime, timedelta, date
+from typing import List
+from datetime import timedelta, date
 import calendar
 
-
-class DataPoint:
-    _dt: datetime
-    _duration: timedelta
-
-    def __init__(self, start: int, duration: int):
-        self._dt = self.to_datetime(start)
-        self._duration = self.to_timedelta(duration)
-
-    @staticmethod
-    def to_datetime(ts: int) -> datetime:
-        return datetime.fromtimestamp(ts)
-
-    @staticmethod
-    def to_timedelta(duration: int) -> timedelta:
-        return timedelta(seconds=duration)
-
-    def add_time(self, duration: timedelta):
-        self._duration += duration
-
-    @property
-    def dt(self) -> datetime:
-        return self._dt
-
-    @dt.setter
-    def dt(self, ts: int):
-        self._dt = self.to_datetime(ts)
-
-    @property
-    def duration(self):
-        return self._duration
-
-    @duration.setter
-    def duration(self, duration: int):
-        self._duration = self.to_timedelta(duration)
-
-    @property
-    def date(self) -> date:
-        return self._dt.date()
+from .data_source import DataPoint, DataSource
 
 
 def hours_formatter(hours_str, _) -> str:
@@ -68,7 +30,8 @@ def convert_durations(data_points: List[DataPoint]) -> List[timedelta]:
     return durations
 
 
-def parse_out_data(documents: List[Dict]) -> List[DataPoint]:
+def extract_data_points(data_sources: List[DataSource],
+                        game_name: str) -> List[DataPoint]:
     def gather_unique(data_points: List[DataPoint]):
         unique_data_points: List[DataPoint] = []
         last = None
@@ -97,12 +60,11 @@ def parse_out_data(documents: List[Dict]) -> List[DataPoint]:
         return combined_data_points
 
     data_points: List[DataPoint] = []
-    for document in documents:
-        if document["identifier"] != "Resonite":
-            continue
-        start_time = document["startTime"]
-        duration = document["duration"]
-        data_points.append(DataPoint(start_time, duration))
+    for data_source in data_sources:
+        for data_point in data_source.stored_data:
+            if data_point.game_name != game_name:
+                continue
+            data_points.append(data_point)
 
     unique_data_points = gather_unique(data_points)
     combined_data_points = combine_durations_for_date(unique_data_points)
