@@ -3,19 +3,19 @@ from os import listdir
 import os
 import sys
 from typing import List, Dict
-import json
 from datetime import date, datetime, timedelta
 
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-from util import (DataPoint,
-                  hours_formatter,
-                  month_formatter,
-                  convert_dates,
-                  convert_durations,
-                  parse_out_data)
+from .data_source import DataSource
+from .util import (DataPoint,
+                   hours_formatter,
+                   month_formatter,
+                   convert_dates,
+                   convert_durations,
+                   extract_data_points)
 
 
 def time_per_day(data_points: List[DataPoint]):
@@ -200,17 +200,17 @@ def time_per_week_number(data_points: List[DataPoint]):
 
 
 def main(json_files: List[str]):
-    documents: List[Dict] = []
     if not json_files:
-        for path in listdir("data"):
+        base_path = DataSource.DATA_DIR
+        for path in listdir(base_path):
             if not path.endswith(".json"):
                 continue
-            json_files.append(f"data/{path}")
+            json_files.append(f"{base_path}/{path}")
+    data: List[DataSource] = []
     for file in json_files:
         print("Processing", file)
-        with open(file, 'r') as f:
-            documents.extend(json.loads(f.read())["documents"])
-    parsed_data: List[DataPoint] = parse_out_data(documents)
+        data.append(DataSource.from_json(file))
+    parsed_data: List[DataPoint] = extract_data_points(data, "Resonite")
 
     if not os.path.exists("plots"):
         os.mkdir("plots")
